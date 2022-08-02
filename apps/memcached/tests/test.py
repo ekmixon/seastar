@@ -28,7 +28,7 @@ def run(args, cmd):
     mc = subprocess.Popen([args.memcached, '--smp=2'])
     print('Memcached started.')
     try:
-        cmdline = [DIR_PATH + '/test_memcached.py'] + cmd
+        cmdline = [f'{DIR_PATH}/test_memcached.py'] + cmd
         if args.fast:
             cmdline.append('--fast')
         print('Running: ' + ' '.join(cmdline))

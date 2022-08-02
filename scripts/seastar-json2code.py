@@ -87,7 +87,7 @@ def trace_verbose(*params):
 
 def trace_err(*params):
     if config.debug > 0:
-        print(current_file + ':' + ''.join(params))
+        print(f'{current_file}:' + ''.join(params))
 
 
 def valid_type(param):
@@ -98,20 +98,20 @@ def valid_type(param):
 
 
 def type_change(param, member):
-    if param == "array":
-        if "items" not in member:
-            trace_err("array without item declaration in ", param)
-            return ""
-        item = member["items"]
-        if "type" in item:
-            t = item["type"]
-        elif "$ref" in item:
-            t = item["$ref"]
-        else:
-            trace_err("array items with no type or ref declaration ", param)
-            return ""
-        return "json_list< " + valid_type(t) + " >"
-    return "json_element< " + valid_type(param) + " >"
+    if param != "array":
+        return f"json_element< {valid_type(param)} >"
+    if "items" not in member:
+        trace_err("array without item declaration in ", param)
+        return ""
+    item = member["items"]
+    if "type" in item:
+        t = item["type"]
+    elif "$ref" in item:
+        t = item["$ref"]
+    else:
+        trace_err("array items with no type or ref declaration ", param)
+        return ""
+    return f"json_list< {valid_type(t)} >"
 
 
 
@@ -141,14 +141,13 @@ def print_copyrights(f):
 
 def print_h_file_headers(f, name):
     print_copyrights(f)
-    fprintln(f, "#ifndef __JSON_AUTO_GENERATED_" + name)
-    fprintln(f, "#define __JSON_AUTO_GENERATED_" + name + "\n")
+    fprintln(f, f"#ifndef __JSON_AUTO_GENERATED_{name}")
+    fprintln(f, f"#define __JSON_AUTO_GENERATED_{name}" + "\n")
 
 
 def clean_param(param):
-    match = re.match(r"^\{\s*([^\}]+)\s*}", param)
-    if match:
-        return [match.group(1), False]
+    if match := re.match(r"^\{\s*([^\}]+)\s*}", param):
+        return [match[1], False]
     return [param, True]
 
 
@@ -160,9 +159,7 @@ def get_parameter_by_name(obj, name):
 
 
 def clear_path_ending(path):
-    if not path or path[-1] != '/':
-        return path
-    return path[0:-1]
+    return path if not path or path[-1] != '/' else path[:-1]
 
 # check if a parameter is query required.
 # It will return true if the required flag is set
@@ -211,14 +208,14 @@ def is_model_valid(name, model):
         return ""
     properties = getitem(model[name], "properties", name)
     for var in properties:
-        type = getitem(properties[var], "type", name + ":" + var)
+        type = getitem(properties[var], "type", f"{name}:{var}")
         if type == "array":
-            items = getitem(properties[var], "items", name + ":" + var);
-            try :
-                type = getitem(items, "type", name + ":" + var + ":items")
+            items = getitem(properties[var], "items", f"{name}:{var}");
+            try:
+                type = getitem(items, "type", f"{name}:{var}:items")
             except Exception as e:
                 try:
-                    type = getitem(items, "$ref", name + ":" + var + ":items")
+                    type = getitem(items, "$ref", f"{name}:{var}:items")
                 except:
                     raise e;
         if type not in valid_vars:
@@ -239,13 +236,13 @@ def resolve_model_order(data):
             stack = [model_name]
             while not resolved:
                 if missing in visited:
-                    raise Exception("Cyclic dependency found: " + missing)
+                    raise Exception(f"Cyclic dependency found: {missing}")
                 missing_depends = is_model_valid(missing, data)
                 if missing_depends == '':
                     if missing not in models:
                         res.append(missing)
                         models.add(missing)
-                    resolved = len(stack) == 0
+                    resolved = not stack
                     if not resolved:
                         missing = stack.pop()
                 else:
@@ -257,19 +254,25 @@ def resolve_model_order(data):
     return res
 
 def create_enum_wrapper(model_name, name, values):
-    enum_name = model_name + "_" + name
-    res =  "  enum class " + enum_name + " {"
+    enum_name = f"{model_name}_{name}"
+    res = f"  enum class {enum_name}" + " {"
     for enum_entry in values:
-        res = res +  "  " + enum_entry + ", "
+        res = f"{res}  {enum_entry}, "
     res = res +   "NUM_ITEMS};\n"
-    wrapper = name + "_wrapper"
+    wrapper = f"{name}_wrapper"
     res = res + Template("""  struct $wrapper : public json::jsonable  {
         $wrapper() = default;
         virtual std::string to_json() const {
             switch(v) {
         """).substitute({'wrapper' : wrapper})
     for enum_entry in values:
-        res = res + "      case " + enum_name + "::" + enum_entry + ": return \"\\\"" + enum_entry + "\\\"\";\n"
+        res = (
+            f"{res}      case {enum_name}::{enum_entry}"
+            + ": return \"\\\""
+            + enum_entry
+            + "\\\"\";\n"
+        )
+
     res = res + Template("""      default: return \"\\\"Unknown\\\"\";
         }
      }
@@ -278,7 +281,11 @@ def create_enum_wrapper(model_name, name, values):
     switch(_v) {
     """).substitute({'wrapper' : wrapper})
     for enum_entry in values:
-        res = res +  "      case T::" + enum_entry + ": v = " + enum_name + "::" + enum_entry + "; break;\n"
+        res = (
+            f"{res}      case T::{enum_entry}: v = {enum_name}::{enum_entry}"
+            + "; break;\n"
+        )
+
     res = res + Template("""      default: v = $enum_name::NUM_ITEMS;
         }
     }
@@ -287,7 +294,11 @@ def create_enum_wrapper(model_name, name, values):
         switch(v) {
     """).substitute({'enum_name': enum_name})
     for enum_entry in values:
-        res = res + "      case " + enum_name + "::" + enum_entry + ": return T::" + enum_entry + ";\n"
+        res = (
+            f"{res}      case {enum_name}::{enum_entry}: return T::{enum_entry}"
+            + ";\n"
+        )
+
     return res + Template("""      default: return T::$value;
           }
         }

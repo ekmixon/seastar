@@ -21,7 +21,7 @@ args = parser.parse_args()
 
 class iotune:
     def __init__(self, args):
-        self._iotune = args.bdir + '/apps/iotune/iotune'
+        self._iotune = f'{args.bdir}/apps/iotune/iotune'
         self._dir = args.directory
 
     def ensure_io_properties(self):
@@ -33,7 +33,7 @@ class iotune:
 
 class ioinfo:
     def __init__(self, args):
-        self._ioinfo = args.bdir + '/apps/io_tester/ioinfo'
+        self._ioinfo = f'{args.bdir}/apps/io_tester/ioinfo'
         self._dir = args.directory
         res = subprocess.check_output([self._ioinfo, '--directory', self._dir, '--io-properties-file', 'io_properties.yaml'])
         self._info = yaml.safe_load(res)
@@ -77,7 +77,7 @@ class io_tester:
     def __init__(self, args):
         self._jobs = []
         self._duration = args.duration
-        self._io_tester = args.bdir + '/apps/io_tester/io_tester'
+        self._io_tester = f'{args.bdir}/apps/io_tester/io_tester'
         self._dir = args.directory
         self._use_fraction = 0.8
 
@@ -125,11 +125,10 @@ def run_jobs(jobs, args):
         }
         statuses.append(status)
 
-        label = ''
         average_exec = '%.3f' % ((res['io_queue_total_exec_sec'] / total_ops) * 1000)
         average_inq = '%.3f' % ((res['io_queue_total_delay_sec'] / total_ops) * 1000)
         average_lat = '%.3f' % (results[n]['latencies']['average'] / 1000)
-        label += '' if status['meets_goal'] else '  no-goal'
+        label = '' + ('' if status['meets_goal'] else '  no-goal')
         label += ' saturated' if status['queues'] else ''
         print(f'\t{n:16}  exec={average_exec}ms  queue={average_inq}ms  latency={average_lat}ms{label}')
 
@@ -186,9 +185,9 @@ def run_pure_test(name, get_jobs, args):
 
 def run_mixed_tests(name, get_jobs, args):
     if run_base_test(name, lambda p: get_jobs(p, p), args):
-        run_saturation_test(name + ' symmetrical', lambda p: get_jobs(p, p), args)
-        run_saturation_test(name + ' one-write', lambda p: get_jobs(p, 1), args)
-        run_saturation_test(name + ' one-read', lambda p: get_jobs(1, p), args)
+        run_saturation_test(f'{name} symmetrical', lambda p: get_jobs(p, p), args)
+        run_saturation_test(f'{name} one-write', lambda p: get_jobs(p, 1), args)
+        run_saturation_test(f'{name} one-read', lambda p: get_jobs(1, p), args)
 
 
 def get_read_job(p, rqsz):

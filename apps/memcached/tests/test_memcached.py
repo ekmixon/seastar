@@ -54,10 +54,10 @@ def slow(f):
 def recv_all(s):
     m = b''
     while True:
-        data = s.recv(1024)
-        if not data:
+        if data := s.recv(1024):
+            m += data
+        else:
             break
-        m += data
     return m
 
 def tcp_call(msg, timeout=1):
@@ -90,10 +90,10 @@ def udp_call_for_fragments(msg, timeout=1):
         n_determined = n
 
         if req_id != this_req_id:
-            raise Exception('Invalid request id: ' + req_id + ', expected ' + this_req_id)
+            raise Exception(f'Invalid request id: {req_id}, expected {this_req_id}')
 
         if seq in messages:
-            raise Exception('Duplicate message for seq=' + seq)
+            raise Exception(f'Duplicate message for seq={seq}')
 
         messages[seq] = content
         if len(messages) == n:
@@ -116,7 +116,7 @@ class MemcacheTest(unittest.TestCase):
 
     def assertHasKey(self, key):
         resp = call('get %s\r\n' % key)
-        if not resp.startswith(('VALUE %s' % key).encode()):
+        if not resp.startswith(f'VALUE {key}'.encode()):
             self.fail('Key \'%s\' should be present, but got: %s' % (key, resp.decode()))
 
     def assertNoKey(self, key):
@@ -129,13 +129,13 @@ class MemcacheTest(unittest.TestCase):
 
     def getItemVersion(self, key):
         m = re.match(r'VALUE %s \d+ \d+ (?P<version>\d+)' % key, call('gets %s\r\n' % key).decode())
-        return int(m.group('version'))
+        return int(m['version'])
 
     def getStat(self, name, call_fn=None):
         if not call_fn: call_fn = call
         resp = call_fn('stats\r\n').decode()
-        m = re.search(r'STAT %s (?P<value>.+)' % re.escape(name), resp, re.MULTILINE)
-        return m.group('value')
+        m = re.search(f'STAT {re.escape(name)} (?P<value>.+)', resp, re.MULTILINE)
+        return m['value']
 
     def flush(self):
         self.assertEqual(call('flush_all\r\n'), b'OK\r\n')
@@ -344,10 +344,15 @@ class TestCommands(MemcacheTest):
         self.assertRegex(resp, pattern)
 
         m = re.match(pattern, resp)
-        self.assertEqual(set([m.group('v1'), m.group('v2'), m.group('v3')]),
-            set(['key1 0 %d\r\n%s' % (len(key1_data), key1_data),
+        self.assertEqual(
+            {m['v1'], m['v2'], m['v3']},
+            {
+                'key1 0 %d\r\n%s' % (len(key1_data), key1_data),
                 'key2 0 %d\r\n%s' % (len(key2_data), key2_data),
-                'key3 0 %d\r\n%s' % (len(key3_data), key3_data)]))
+                'key3 0 %d\r\n%s' % (len(key3_data), key3_data),
+            },
+        )
+
 
         self.delete('key1')
         self.delete('key2')
@@ -541,7 +546,12 @@ class TestCommands(MemcacheTest):
             for value in ['', '-1', 'a', '0x1', '18446744073709551616']:
                 self.assertEqual(call('set key 0 0 %d\r\n%s\r\n' % (len(value), value)), b'STORED\r\n')
                 prev = call('get key\r\n')
-                self.assertEqual(call(cmd + ' key 1\r\n'), error_msg, "cmd=%s, value=%s" % (cmd, value))
+                self.assertEqual(
+                    call(cmd + ' key 1\r\n'),
+                    error_msg,
+                    f"cmd={cmd}, value={value}",
+                )
+
                 self.assertEqual(call('get key\r\n'), prev)
                 self.delete('key')
 

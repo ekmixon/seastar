@@ -154,11 +154,9 @@ class Graph:
                 return
             sfx = l[i:]
             w = width - len(sfx) - 3
-            if w > 0:
-                pfx = l[:w]
-            else:
-                pfx = ""
+            pfx = l[:w] if w > 0 else ""
             print(f"{pfx}...{sfx}")
+
         for l in lines.splitlines():
             if l:
                 _print(l, width)
@@ -177,7 +175,7 @@ Use --direction={'bottom-up' if top_down else 'top-down'} to print {'callees' if
 """)
         varargs = vars(args)
         clopts = ""
-        for k in varargs.keys():
+        for k in varargs:
             val = varargs[k]
             opt = re.sub('_', '-', k)
             if val is None:
@@ -199,8 +197,7 @@ Use --direction={'bottom-up' if top_down else 'top-down'} to print {'callees' if
             if level >= 0:
                 avg = round(total / count) if count else 0
                 prefix = _prefix(prefix_list)
-                p = '+' if idx == 1 or idx == out_of else '|'
-                p += '+'
+                p = ('+' if idx in [1, out_of] else '|') + '+'
                 l = f"[{level}#{idx}/{out_of} {round(100*rel)}%]"
                 cont_indent = len(l) + 1
                 if skip_stats:
@@ -333,7 +330,7 @@ for s in input:
         continue
     count += 1
     trace = s.split()
-    for i in range(0, len(trace)):
+    for i in range(len(trace)):
         if trace[i] == 'Reactor':
             i += 3
             break
@@ -353,7 +350,7 @@ for s in input:
     #  (inlined by) seastar::reactor::block_notifier(int) at ./build/release/seastar/./seastar/src/core/reactor.cc:1240
     # ?? ??:0
     if address_threshold:
-        for i in range(0, len(trace)):
+        for i in range(len(trace)):
             if int(trace[i], 0) >= address_threshold:
                 while int(trace[i], 0) >= address_threshold:
                     i += 1

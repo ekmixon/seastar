@@ -200,11 +200,7 @@ if args.file:
 elif args.addresses:
     lines = args.addresses
 else:
-    if sys.stdin.isatty():
-        lines = StdinBacktraceIterator()
-    else:
-        lines = sys.stdin
-
+    lines = StdinBacktraceIterator() if sys.stdin.isatty() else sys.stdin
 with BacktraceResolver(executable=args.executable, before_lines=args.before, context_re=args.match, verbose=args.verbose) as resolve:
     p = re.compile(r'\W+')
     for line in lines:

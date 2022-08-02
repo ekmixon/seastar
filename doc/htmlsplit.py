@@ -110,13 +110,12 @@ def remove_ns_prefix(tree):
 
 
 def get_chap_num(element):
-    data_num = e.get('data-number')
-    if data_num:
+    if data_num := e.get('data-number'):
         return int(data_num)
-    data_num = e.findtext('./span[@class="header-section-number"]')
-    if data_num:
+    if data_num := e.findtext('./span[@class="header-section-number"]'):
         return int(data_num)
-    assert data_num, "section number not found"
+    else:
+        assert data_num, "section number not found"
 
 
 parser = argparse.ArgumentParser()

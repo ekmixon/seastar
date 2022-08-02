@@ -70,8 +70,8 @@ class req_stat:
         self.in_disk.dec()
 
     def show(self, rqlen):
-        print("{}k requests".format(int(rqlen/1024)))
-        print("\ttotal: {}".format(len(self.latencies)))
+        print(f"{int(rqlen/1024)}k requests")
+        print(f"\ttotal: {len(self.latencies)}")
         print_stat_line('in queue usec', self.qtimes)
         print_stat_line('      `- num ', self.in_queue.stat())
         print_stat_line('in disk usec', self.xtimes)
@@ -125,7 +125,7 @@ class device_stat:
         print_stat_line('in disk num:', self.in_disk.stat())
 
     def show(self, devid):
-        print("{}".format(devid).center(80, "-"))
+        print(f"{devid}".center(80, "-"))
         self._show_req_stats()
         self._show_queue_stats()
 
@@ -154,9 +154,8 @@ class parser:
             st.complete(req_id, ts)
 
     def _parse_line(self, ln):
-        if ln[4] == 'io':
-            if ln[9] == 'req':
-                self._parse_req_event(ln)
+        if ln[4] == 'io' and ln[9] == 'req':
+            self._parse_req_event(ln)
 
     def parse(self):
         for ln in self._file:

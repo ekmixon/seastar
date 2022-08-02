@@ -21,7 +21,7 @@ args = parser.parse_args()
 
 class iotune:
     def __init__(self, args):
-        self._iotune = args.bdir + '/apps/iotune/iotune'
+        self._iotune = f'{args.bdir}/apps/iotune/iotune'
         self._dir = args.directory
 
     def ensure_io_properties(self):
@@ -69,7 +69,7 @@ class job:
 class io_tester:
     def __init__(self, args):
         self._jobs = []
-        self._io_tester = args.bdir + '/apps/io_tester/io_tester'
+        self._io_tester = f'{args.bdir}/apps/io_tester/io_tester'
         self._dir = args.directory
         self._use_fraction = 0.8
         self._max_data_size_gb = 8

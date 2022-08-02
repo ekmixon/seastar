@@ -35,9 +35,9 @@ class Addr2Line:
         output = subprocess.check_output(["file", self._binary])
         s = output.decode("utf-8")
         if s.find('ELF') >= 0 and s.find('debug_info', len(self._binary)) < 0:
-            print('{}'.format(s))
+            print(f'{s}')
 
-        options = f"-{'C' if not concise else ''}fpia"
+        options = f"-{'' if concise else 'C'}fpia"
         self._input = subprocess.Popen(["addr2line", options, "-e", self._binary], stdin=subprocess.PIPE, stdout=subprocess.PIPE, universal_newlines=True)
         if concise:
             self._output = subprocess.Popen(["c++filt", "-p"], stdin=self._input.stdout, stdout=subprocess.PIPE, universal_newlines=True)
@@ -100,12 +100,12 @@ class BacktraceResolver(object):
             if m:
                 #print(f">>> '{line}': oneline {m.groups()}")
                 ret = {'type': self.Type.ADDRESS}
-                ret['prefix'] = get_prefix(m.group(1))
+                ret['prefix'] = get_prefix(m[1])
                 addresses = []
-                for obj in m.group(2).split():
+                for obj in m[2].split():
                     m = re.match(self.address_re, obj)
                     #print(f"  >>> '{obj}': address {m.groups()}")
-                    addresses.append({'path': m.group(1), 'addr': m.group(2)})
+                    addresses.append({'path': m[1], 'addr': m[2]})
                 ret['addresses'] = addresses
                 return ret
 
@@ -114,15 +114,11 @@ class BacktraceResolver(object):
                 #print(f">>> '{line}': asan {m.groups()}")
                 ret = {'type': self.Type.ADDRESS}
                 ret['prefix'] = None
-                ret['addresses'] = [{'path': m.group(2), 'addr': m.group(3)}]
+                ret['addresses'] = [{'path': m[2], 'addr': m[3]}]
                 return ret
 
             match = re.match(self.separator_re, line)
-            if match:
-                return {'type': self.Type.SEPARATOR}
-
-            #print(f">>> '{line}': None")
-            return None
+            return {'type': self.Type.SEPARATOR} if match else None
 
     def __init__(self, executable, before_lines=1, context_re='', verbose=False, concise=False):
         self._executable = executable
@@ -132,17 +128,14 @@ class BacktraceResolver(object):
         self._before_lines_queue = collections.deque(maxlen=before_lines)
         self._i = 0
         self._known_backtraces = {}
-        if context_re is not None:
-            self._context_re = re.compile(context_re)
-        else:
-            self._context_re = None
+        self._context_re = re.compile(context_re) if context_re is not None else None
         self._verbose = verbose
         self._concise = concise
         self._known_modules = {self._executable: Addr2Line(self._executable, concise)}
         self.parser = self.BacktraceParser()
 
     def _get_resolver_for_module(self, module):
-        if not module in self._known_modules:
+        if module not in self._known_modules:
             self._known_modules[module] = Addr2Line(module, self._concise)
         return self._known_modules[module]
 
@@ -172,10 +165,7 @@ class BacktraceResolver(object):
         if any(map(lambda x: self._context_re.search(x) is not None, self._before_lines_queue)):
             return True
 
-        if (not self._prefix is None) and self._context_re.search(self._prefix):
-            return True
-
-        return False
+        return bool(self._prefix is not None and self._context_re.search(self._prefix))
 
     def _print_current_backtrace(self):
         if len(self._current_backtrace) == 0:
@@ -188,20 +178,23 @@ class BacktraceResolver(object):
         for line in self._before_lines_queue:
             sys.stdout.write(line)
 
-        if not self._prefix is None:
+        if self._prefix is not None:
             print(self._prefix)
             self._prefix = None
 
         backtrace = "".join(map(str, self._current_backtrace))
         if backtrace in self._known_backtraces:
-            print("[Backtrace #{}] Already seen, not resolving again.".format(self._known_backtraces[backtrace]))
+            print(
+                f"[Backtrace #{self._known_backtraces[backtrace]}] Already seen, not resolving again."
+            )
+
             print("") # To separate traces with an empty line
             self._current_backtrace = []
             return
 
         self._known_backtraces[backtrace] = self._i
 
-        print("[Backtrace #{}]".format(self._i))
+        print(f"[Backtrace #{self._i}]")
 
         for module, addr in self._current_backtrace:
             self._print_resolved_address(module, addr)
@@ -220,8 +213,6 @@ class BacktraceResolver(object):
                 self._before_lines_queue.append(line)
             elif self._before_lines < 0:
                 sys.stdout.write(line) # line already has a trailing newline
-            else:
-                pass # when == 0 no non-backtrace lines are printed
         elif res['type'] == self.BacktraceParser.Type.SEPARATOR:
             pass
         elif res['type'] == self.BacktraceParser.Type.ADDRESS:

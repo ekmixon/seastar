@@ -126,8 +126,7 @@ def find_module(mod):
     the script '''
     # check $RTE_SDK/$RTE_TARGET directory
     if 'RTE_SDK' in os.environ and 'RTE_TARGET' in os.environ:
-        path = "%s/%s/kmod/%s.ko" % (os.environ['RTE_SDK'],\
-                                     os.environ['RTE_TARGET'], mod)
+        path = f"{os.environ['RTE_SDK']}/{os.environ['RTE_TARGET']}/kmod/{mod}.ko"
         if exists(path):
             return path
 
@@ -146,7 +145,7 @@ def find_module(mod):
     tools_dir = dirname(abspath(sys.argv[0]))
     if (tools_dir.endswith("tools")):
         base_dir = dirname(tools_dir)
-        find_out = check_output(["find", base_dir, "-name", mod + ".ko"])
+        find_out = check_output(["find", base_dir, "-name", f"{mod}.ko"])
         if len(find_out) > 0: #something matched
             path = find_out.splitlines()[0]
             if exists(path):
@@ -202,7 +201,7 @@ def get_pci_device_details(dev_id):
         name = name.strip(":") + "_str"
         device[name] = value
     # check for a unix interface name
-    sys_path = "/sys/bus/pci/devices/%s/net/" % dev_id
+    sys_path = f"/sys/bus/pci/devices/{dev_id}/net/"
     if exists(sys_path):
         device["Interface"] = ",".join(os.listdir(sys_path))
     else:
@@ -237,26 +236,23 @@ def get_nic_details():
             name, value = dev_line.split("\t", 1)
             dev[name.rstrip(":")] = value
 
-    # check what is the interface if any for an ssh connection if
-    # any to this host, so we can mark it later.
-    ssh_if = []
     route = check_output(["ip", "-o", "route"])
     # filter out all lines for 169.254 routes
     route = "\n".join(filter(lambda ln: not ln.startswith("169.254"),
                              route.splitlines()))
     rt_info = route.split()
-    for i in xrange(len(rt_info) - 1):
-        if rt_info[i] == "dev":
-            ssh_if.append(rt_info[i+1])
+    ssh_if = [
+        rt_info[i + 1] for i in xrange(len(rt_info) - 1) if rt_info[i] == "dev"
+    ]
 
     # based on the basic info, get extended text details
-    for d in devices.keys():
+    for d, value_ in devices.items():
         # get additional info and add it to existing data
         devices[d] = dict(devices[d].items() +
                           get_pci_device_details(d).items())
 
         for _if in ssh_if:
-            if _if in devices[d]["Interface"].split(","):
+            if _if in value_["Interface"].split(","):
                 devices[d]["Ssh_if"] = True
                 devices[d]["Active"] = "*Active*"
                 break;
@@ -265,7 +261,7 @@ def get_nic_details():
         if "Module_str" in devices[d]:
             for driver in dpdk_drivers:
                 if driver not in devices[d]["Module_str"]:
-                    devices[d]["Module_str"] = devices[d]["Module_str"] + ",%s" % driver
+                    devices[d]["Module_str"] = devices[d]["Module_str"] + f",{driver}"
         else:
             devices[d]["Module_str"] = ",".join(dpdk_drivers)
 
@@ -284,17 +280,14 @@ def dev_id_from_dev_name(dev_name):
     # check if it's already a suitable index
     if dev_name in devices:
         return dev_name
-    # check if it's an index just missing the domain part
-    elif "0000:" + dev_name in devices:
-        return "0000:" + dev_name
+    elif f"0000:{dev_name}" in devices:
+        return f"0000:{dev_name}"
     else:
         # check if it's an interface name, e.g. eth1
         for d in devices.keys():
             if dev_name in devices[d]["Interface"].split(","):
                 return devices[d]["Slot"]
-    # if nothing else matches - error
-    print "Unknown device: %s. " \
-        "Please specify device in \"bus:slot.func\" format" % dev_name
+    dev = None
     sys.exit(1)
 
 def unbind_one(dev_id, force):

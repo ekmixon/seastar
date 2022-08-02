@@ -27,10 +27,21 @@ import tempfile
 tempfile.tempdir = "./build/tmp"
 
 def add_tristate(arg_parser, name, dest, help, default=None):
-    arg_parser.add_argument('--enable-' + name, dest = dest, action = 'store_true', default = default,
-                            help = 'Enable ' + help + ' [default]' if default else '')
-    arg_parser.add_argument('--disable-' + name, dest = dest, action = 'store_false', default = None,
-                            help = 'Disable ' + help)
+    arg_parser.add_argument(
+        f'--enable-{name}',
+        dest=dest,
+        action='store_true',
+        default=default,
+        help=f'Enable {help} [default]' if default else '',
+    )
+
+    arg_parser.add_argument(
+        f'--disable-{name}',
+        dest=dest,
+        action='store_false',
+        default=None,
+        help=f'Disable {help}',
+    )
 
 def try_compile(compiler, source = '', flags = []):
     return try_compile_and_link(compiler, source, flags = flags + ['-c'])
@@ -55,7 +66,7 @@ def try_compile_and_link(compiler, source = '', flags = []):
             if os.path.exists(ofile):
                 os.unlink(ofile)
 def dialect_supported(dialect, compiler='g++'):
-    return try_compile(compiler=compiler, source='', flags=['-std=' + dialect])
+    return try_compile(compiler=compiler, source='', flags=[f'-std={dialect}'])
 
 arg_parser = argparse.ArgumentParser('Configure seastar')
 arg_parser.add_argument('--mode', action='store', choices=seastar_cmake.SUPPORTED_MODES + ['all'], default='all')
@@ -180,12 +191,12 @@ def configure_mode(mode):
     LDFLAGS = seastar_cmake.convert_strings_to_cmake_list(args.user_ldflags)
 
     TRANSLATED_ARGS = [
-        '-DCMAKE_BUILD_TYPE={}'.format(MODE_TO_CMAKE_BUILD_TYPE[mode]),
-        '-DCMAKE_C_COMPILER={}'.format(args.cc),
-        '-DCMAKE_CXX_COMPILER={}'.format(args.cxx),
-        '-DCMAKE_INSTALL_PREFIX={}'.format(args.install_prefix),
-        '-DSeastar_API_LEVEL={}'.format(args.api_level),
-        '-DSeastar_SCHEDULING_GROUPS_COUNT={}'.format(args.scheduling_groups_count),
+        f'-DCMAKE_BUILD_TYPE={MODE_TO_CMAKE_BUILD_TYPE[mode]}',
+        f'-DCMAKE_C_COMPILER={args.cc}',
+        f'-DCMAKE_CXX_COMPILER={args.cxx}',
+        f'-DCMAKE_INSTALL_PREFIX={args.install_prefix}',
+        f'-DSeastar_API_LEVEL={args.api_level}',
+        f'-DSeastar_SCHEDULING_GROUPS_COUNT={args.scheduling_groups_count}',
         tr(args.exclude_tests, 'EXCLUDE_TESTS_FROM_ALL'),
         tr(args.exclude_apps, 'EXCLUDE_APPS_FROM_ALL'),
         tr(args.exclude_demos, 'EXCLUDE_DEMOS_FROM_ALL'),
@@ -195,15 +206,27 @@ def configure_mode(mode):
         tr(args.dpdk, 'DPDK'),
         tr(infer_dpdk_machine(args.user_cflags), 'DPDK_MACHINE'),
         tr(args.hwloc, 'HWLOC', value_when_none='yes'),
-        tr(args.alloc_failure_injection, 'ALLOC_FAILURE_INJECTION', value_when_none='DEFAULT'),
+        tr(
+            args.alloc_failure_injection,
+            'ALLOC_FAILURE_INJECTION',
+            value_when_none='DEFAULT',
+        ),
         tr(args.task_backtrace, 'TASK_BACKTRACE'),
         tr(args.alloc_page_size, 'ALLOC_PAGE_SIZE'),
         tr(args.split_dwarf, 'SPLIT_DWARF'),
         tr(args.heap_profiling, 'HEAP_PROFILING'),
-        tr(args.deferred_action_require_noexcept, 'DEFERRED_ACTION_REQUIRE_NOEXCEPT'),
+        tr(
+            args.deferred_action_require_noexcept,
+            'DEFERRED_ACTION_REQUIRE_NOEXCEPT',
+        ),
         tr(args.unused_result_error, 'UNUSED_RESULT_ERROR'),
-        tr(args.debug_shared_ptr, 'DEBUG_SHARED_PTR', value_when_none='default'),
+        tr(
+            args.debug_shared_ptr,
+            'DEBUG_SHARED_PTR',
+            value_when_none='default',
+        ),
     ]
+
 
     ingredients_to_cook = set(args.cook)
 
@@ -228,7 +251,7 @@ def configure_mode(mode):
         dir = BUILD_PATH
     ARGS += TRANSLATED_ARGS
     if args.verbose:
-        print("Running CMake in '{}' ...".format(dir))
+        print(f"Running CMake in '{dir}' ...")
         print(" \\\n  ".join(ARGS))
     distutils.dir_util.mkpath(BUILD_PATH)
     subprocess.check_call(ARGS, shell=False, cwd=dir)
